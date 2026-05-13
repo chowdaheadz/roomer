@@ -1,4 +1,4 @@
-// Edited via /admin.html on 5/13/2026, 6:56:40 PM
+// Edited via /admin.html on 5/13/2026, 7:04:12 PM
 window.LISTING = {
   "id": "120-summer-ave",
   "status": "active",
@@ -45,7 +45,7 @@ window.LISTING = {
             "Period staircase",
             "Original millwork"
           ],
-          "description": "A gracious foyer sets the tone — period staircase, generous landing, and the kind of light that only old houses have. Original millwork has been preserved.",
+          "description": "A gracious foyer sets the tone — period staircase, generous landing, and the kind of light that only old houses have. Original millwork has been preserved. This foyer provides great access from the driveway.  Plenty of space to add cubbies and hangers!",
           "photos": [
             "https://photos.zillowstatic.com/fp/2371c11cab6fecbbac2ecac517982670-uncropped_scaled_within_1536_1152.webp",
             "https://photos.zillowstatic.com/fp/e35dbb57043e6bd91adaebb2b42f4231-uncropped_scaled_within_1536_1152.webp"
@@ -197,7 +197,10 @@ window.LISTING = {
             "Mature trees"
           ],
           "description": "A tenth-of-an-acre lot with mature trees and room to breathe — rare for this part of Reading.",
-          "photos": [],
+          "photos": [
+            "https://photos.zillowstatic.com/fp/7b3fdd499849cc6badf2072941288c40-uncropped_scaled_within_1536_1152.webp",
+            "https://photos.zillowstatic.com/fp/5a08bc4afc3718e7009555898939a89d-uncropped_scaled_within_1536_1152.webp"
+          ],
           "complete": true
         },
         {

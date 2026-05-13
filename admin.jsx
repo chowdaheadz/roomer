@@ -155,7 +155,7 @@ function PropertyView({listing, setListing, openRoom, gotoQR}) {
           <div style={{display:"flex", gap:8, marginTop:10, flexWrap:"wrap"}}>
             <Pill tone="green"><span className="dot green"/> Active</Pill>
             {incomplete > 0 && <Pill tone="warn">⚠ {incomplete} rooms need details</Pill>}
-            <Pill>roomer.app/p/{listing.id}</Pill>
+            <Pill>{(typeof window!=="undefined"?window.location.host:"")+"/"}</Pill>
           </div>
         </div>
         <div style={{display:"flex", gap:8}}>
@@ -453,12 +453,37 @@ function RoomEditor({listing, setListing, floorId, roomId, onClose}) {
 
 // ----- QR view -----
 function QRView({listing}) {
-  const url = `https://roomer.app/p/${listing.id}`;
+  // Default to the page that's serving the admin — minus any path, since
+  // index.html is the consumer entry point.
+  const guessedOrigin = (typeof window !== "undefined") ? window.location.origin : "https://example.com";
+  const [url, setUrl] = useStateA(() => {
+    const saved = (typeof localStorage !== "undefined") && localStorage.getItem("roomer.publicUrl");
+    return saved || (guessedOrigin + "/");
+  });
+  useEffectA(() => {
+    try { localStorage.setItem("roomer.publicUrl", url); } catch(e) {}
+  }, [url]);
+
   const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(url)}&size=400x400&margin=10&qzone=1&format=svg`;
+  const downloadQR = async () => {
+    try {
+      const r = await fetch(qrSrc.replace("format=svg", "format=png").replace("size=400x400","size=1024x1024"));
+      const b = await r.blob();
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(b);
+      a.download = "roomer-qr-" + listing.id + ".png";
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(()=>URL.revokeObjectURL(a.href), 0);
+    } catch(e) { alert("Could not download — right-click the QR and Save Image As…"); }
+  };
+  const copy = () => {
+    navigator.clipboard?.writeText(url);
+  };
+
   return (
     <div style={{padding:"28px 32px"}}>
       <div className="mono" style={{fontSize:11, color:"var(--muted)", letterSpacing:".1em"}}>SHARE</div>
-      <h1 className="serif" style={{fontSize:32, margin:"4px 0 6px"}}>QR & share</h1>
+      <h1 className="serif" style={{fontSize:32, margin:"4px 0 6px"}}>QR &amp; share</h1>
       <p style={{color:"var(--muted)", margin:"0 0 22px", fontSize:14}}>
         Print and tape to the front door Saturday morning.
       </p>
@@ -474,32 +499,40 @@ function QRView({listing}) {
           }}>
             <img src={qrSrc} alt="QR code" style={{width:260, height:260, display:"block"}}/>
           </div>
-          <div className="serif" style={{fontSize:20, marginTop:14}}>120 Summer Avenue</div>
-          <div className="mono" style={{fontSize:11, color:"var(--muted)", marginTop:2}}>{url.replace("https://","")}</div>
+          <div className="serif" style={{fontSize:20, marginTop:14}}>{listing.address.line1}</div>
+          <div className="mono" style={{fontSize:11, color:"var(--muted)", marginTop:2, wordBreak:"break-all"}}>
+            {url.replace(/^https?:\/\//,"")}
+          </div>
           <div style={{display:"flex", gap:8, marginTop:14, justifyContent:"center"}}>
-            <button className="btn">Download PNG</button>
-            <button className="btn primary">Print sheet</button>
+            <button className="btn" onClick={downloadQR}>Download PNG</button>
+            <button className="btn primary" onClick={()=>window.open(qrSrc, "_blank")}>Open SVG</button>
           </div>
         </div>
 
         <div style={{
           background:"var(--card)", border:"1px solid var(--line)", borderRadius:14, padding:22
         }}>
-          <h3 className="serif" style={{fontSize:20, margin:"0 0 10px"}}>Saturday checklist</h3>
-          <ol style={{paddingLeft:18, margin:0, lineHeight:1.7, fontSize:14, color:"var(--ink-2)"}}>
-            <li>Walk every room — confirm each description matches.</li>
-            <li>Add one photo per room (kitchen especially).</li>
-            <li>Print this QR on a half-sheet with the address.</li>
-            <li>Tape to front door + place a stack on the kitchen counter.</li>
-            <li>After: ask 3 buyers if they actually used it.</li>
-          </ol>
+          <h3 className="serif" style={{fontSize:20, margin:"0 0 10px"}}>Your public link</h3>
+          <p style={{fontSize:13, color:"var(--muted)", margin:"0 0 10px"}}>
+            Set this to the URL buyers should land on when they scan the code. The QR updates live.
+          </p>
+          <div style={{display:"flex", gap:8, marginBottom:14}}>
+            <input style={inp} value={url} onChange={e=>setUrl(e.target.value)}
+              placeholder="https://your-listing.vercel.app/"/>
+            <button className="btn" onClick={copy} style={{marginBottom:12, flexShrink:0}}>Copy</button>
+          </div>
+          <a href={url} target="_blank" className="mono" style={{fontSize:12, color:"var(--accent-ink)"}}>
+            ↗ Open in new tab to test
+          </a>
 
           <div style={{borderTop:"1px solid var(--line)", marginTop:18, paddingTop:14}}>
-            <div className="mono" style={{fontSize:11, color:"var(--muted)", letterSpacing:".08em", marginBottom:6}}>SHARE LINK</div>
-            <div style={{display:"flex", gap:8}}>
-              <input style={inp} readOnly value={url}/>
-              <button className="btn" style={{marginBottom:12, flexShrink:0}}>Copy</button>
-            </div>
+            <div className="mono" style={{fontSize:11, color:"var(--muted)", letterSpacing:".08em", marginBottom:8}}>SATURDAY CHECKLIST</div>
+            <ol style={{paddingLeft:18, margin:0, lineHeight:1.7, fontSize:13, color:"var(--ink-2)"}}>
+              <li>Confirm the public link above points to your live site.</li>
+              <li>Scan the QR with your own phone — make sure it loads.</li>
+              <li>Print this QR on a half-sheet with the address.</li>
+              <li>Tape to front door + stack on the kitchen counter.</li>
+            </ol>
           </div>
         </div>
       </div>

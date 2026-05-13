@@ -37,6 +37,25 @@ There are about a dozen TODOs — kitchen details, all three bedrooms, both upst
 
 ---
 
+## Photos — how they actually work
+
+When you upload a photo in `/admin.html`:
+1. It's resized to **1200px on the long edge** and re-encoded as JPEG (~80–120 KB each).
+2. It's stored in your browser's localStorage so the preview works.
+3. **The photo is NOT live for buyers yet.** Buyers see whatever's in `data.js` on the deployed site.
+
+To make photos public:
+1. Finish uploading + writing in `/admin.html`.
+2. Click **Export data.js** (top right). You'll get a single `data.js` file with all photos baked in as base64.
+3. Replace the `data.js` in your GitHub repo with the downloaded one. Push.
+4. Vercel auto-deploys. Now buyers see the photos.
+
+**Size budget:** with all 12 rooms + 5 photos each, your `data.js` will be ~5–7 MB. That's fine for one weekend. If you see a "storage full" warning in the admin, remove a few photos.
+
+For a real product (multiple listings, no size limit) — you'd upload to Cloudinary/S3 instead of base64. Out of scope for the weekend.
+
+---
+
 ## Friday night plan
 
 Pour a glass of wine. Open `/admin.html` (or edit `data.js`).

@@ -89,6 +89,12 @@
         setSavedAt(new Date());
       } catch (e) {
         console.error("Could not save to localStorage", e);
+        alert(
+          "Heads up — out of browser storage.\n\n" +
+          "Photos are taking too much room. Either:\n" +
+          "• Click 'Export data.js' now to save your work to disk, then refresh and reduce some photos, or\n" +
+          "• Remove a few photos to free space."
+        );
       }
     }, [listing]);
 

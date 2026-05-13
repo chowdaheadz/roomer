@@ -299,26 +299,83 @@ function Field({label, children}) {
   );
 }
 
-// ----- Photo uploader -----
+// ----- Photo uploader (with auto-resize + JPEG compress) -----
+// Resizes long edge to 1400px and re-encodes as JPEG at ~q=0.72.
+// 12 rooms × 5 photos at ~120KB each = ~7MB data.js (large but workable).
+async function compressImage(file, maxEdge = 1200, quality = 0.7) {
+  // Read into Image
+  const dataURL = await new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(r.result);
+    r.onerror = rej;
+    r.readAsDataURL(file);
+  });
+  const img = await new Promise((res, rej) => {
+    const i = new Image();
+    i.onload = () => res(i);
+    i.onerror = rej;
+    i.src = dataURL;
+  });
+  // Resize
+  let { width: w, height: h } = img;
+  if (Math.max(w, h) > maxEdge) {
+    const scale = maxEdge / Math.max(w, h);
+    w = Math.round(w * scale); h = Math.round(h * scale);
+  }
+  const canvas = document.createElement("canvas");
+  canvas.width = w; canvas.height = h;
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(img, 0, 0, w, h);
+  return canvas.toDataURL("image/jpeg", quality);
+}
+
 function PhotoUploader({photos, onChange, max=5}) {
   const inputRef = useRefA(null);
-  const add = (files) => {
+  const [busy, setBusy] = useStateA(false);
+  const [urlInput, setUrlInput] = useStateA("");
+
+  const add = async (files) => {
     const remaining = max - photos.length;
     const slice = Array.from(files).slice(0, remaining);
-    Promise.all(slice.map(f => new Promise(res => {
-      const r = new FileReader();
-      r.onload = () => res(r.result);
-      r.readAsDataURL(f);
-    }))).then(urls => onChange([...photos, ...urls]));
+    setBusy(true);
+    try {
+      const compressed = await Promise.all(slice.map(f => compressImage(f).catch(()=>null)));
+      onChange([...photos, ...compressed.filter(Boolean)]);
+    } finally {
+      setBusy(false);
+    }
+  };
+  const addUrl = () => {
+    const u = urlInput.trim();
+    if (!u) return;
+    if (!/^https?:\/\//i.test(u)) { alert("URL must start with http:// or https://"); return; }
+    if (photos.length >= max) return;
+    onChange([...photos, u]);
+    setUrlInput("");
   };
   const remove = (i) => onChange(photos.filter((_,j)=>j!==i));
+
+  // Show approximate total weight (URLs don't count — they're tiny strings)
+  const isData = (p) => typeof p === "string" && p.startsWith("data:");
+  const totalKB = Math.round(
+    photos.filter(isData).reduce((s,p)=>s + (p?.length||0), 0) * 0.75 / 1024
+  );
+  const urlCount = photos.filter(p => !isData(p)).length;
 
   return (
     <div>
       <div style={{display:"grid", gridTemplateColumns:"repeat(5,1fr)", gap:8}}>
         {photos.map((p,i) => (
           <div key={i} style={{position:"relative", aspectRatio:"1/1", borderRadius:10, overflow:"hidden", border:"1px solid var(--line)"}}>
-            <img src={p} style={{width:"100%", height:"100%", objectFit:"cover"}}/>
+            <img src={p} style={{width:"100%", height:"100%", objectFit:"cover"}}
+              onError={(e)=>{ e.currentTarget.style.display="none"; }}/>
+            {!isData(p) && (
+              <span title="From URL" style={{
+                position:"absolute", left:4, top:4, padding:"2px 6px", borderRadius:4,
+                background:"rgba(0,0,0,0.55)", color:"#FFF", fontSize:9,
+                fontFamily:"JetBrains Mono, monospace", letterSpacing:".06em"
+              }}>URL</span>
+            )}
             <button onClick={()=>remove(i)} style={{
               position:"absolute", top:4, right:4, width:22, height:22,
               borderRadius:999, border:"none", background:"rgba(0,0,0,0.55)", color:"#FFF",
@@ -327,20 +384,46 @@ function PhotoUploader({photos, onChange, max=5}) {
           </div>
         ))}
         {photos.length < max && (
-          <button onClick={()=>inputRef.current?.click()} className="placeholder-stripes" style={{
-            aspectRatio:"1/1", borderRadius:10, border:"1px dashed var(--line-2)",
-            display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
-            background:"#FBF7EE", color:"var(--muted)", fontSize:11, gap:4
-          }}>
-            <div style={{fontSize:20, lineHeight:1}}>+</div>
-            <div className="mono" style={{fontSize:9, letterSpacing:".1em"}}>UPLOAD</div>
+          <button onClick={()=>inputRef.current?.click()} disabled={busy}
+            className="placeholder-stripes" style={{
+              aspectRatio:"1/1", borderRadius:10, border:"1px dashed var(--line-2)",
+              display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
+              background:"#FBF7EE", color:"var(--muted)", fontSize:11, gap:4,
+              cursor: busy ? "wait" : "pointer", opacity: busy ? 0.6 : 1
+            }}>
+            <div style={{fontSize:20, lineHeight:1}}>{busy ? "…" : "+"}</div>
+            <div className="mono" style={{fontSize:9, letterSpacing:".1em"}}>
+              {busy ? "RESIZING" : "UPLOAD"}
+            </div>
           </button>
         )}
       </div>
       <input ref={inputRef} type="file" accept="image/*" multiple
         style={{display:"none"}} onChange={e=>add(e.target.files)}/>
-      <div style={{marginTop:6, fontSize:11, color:"var(--muted)"}}>
-        {photos.length} / {max} · drag in or click +
+
+      {/* URL paste row */}
+      {photos.length < max && (
+        <div style={{display:"flex", gap:6, marginTop:8}}>
+          <input
+            style={{...inp, marginBottom:0, fontSize:12, padding:"7px 10px"}}
+            placeholder="…or paste image URL (e.g. from Zillow)"
+            value={urlInput}
+            onChange={e=>setUrlInput(e.target.value)}
+            onKeyDown={e => e.key==="Enter" && (e.preventDefault(), addUrl())}
+          />
+          <button className="btn" onClick={addUrl} style={{flexShrink:0, padding:"7px 12px", fontSize:12}}>
+            Add URL
+          </button>
+        </div>
+      )}
+
+      <div style={{marginTop:6, fontSize:11, color:"var(--muted)", display:"flex", justifyContent:"space-between"}}>
+        <span>
+          {photos.length} / {max}
+          {urlCount > 0 && ` · ${urlCount} hosted`}
+          {(photos.length - urlCount) > 0 && ` · ${photos.length - urlCount} uploaded`}
+        </span>
+        {totalKB > 0 && <span>~{totalKB} KB</span>}
       </div>
     </div>
   );

@@ -1,0 +1,82 @@
+/* Roomer — shared styles */
+
+:root {
+  --paper: #F4EFE6;
+  --paper-2: #ECE6D9;
+  --card: #FFFFFF;
+  --ink: #1B1916;
+  --ink-2: #3A352D;
+  --muted: #7A7065;
+  --line: #E3DCCD;
+  --line-2: #D5CCB8;
+  --accent: #B4593A;       /* terracotta */
+  --accent-ink: #6E2F18;
+  --moss: #3F5A3F;         /* sage/moss for "complete" */
+  --warn: #B07A1C;
+  --bg-dark: #1B1916;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+
+body {
+  font-family: "DM Sans", -apple-system, system-ui, sans-serif;
+  color: var(--ink);
+  background: var(--paper);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.serif { font-family: "Instrument Serif", "Cormorant Garamond", Georgia, serif; font-weight: 400; letter-spacing: -0.01em; }
+.mono  { font-family: "JetBrains Mono", ui-monospace, monospace; }
+
+button { font: inherit; color: inherit; cursor: pointer; }
+input, textarea, select { font: inherit; color: inherit; }
+
+/* Subtle paper texture for backgrounds (cheap) */
+.paper-bg {
+  background:
+    radial-gradient(1200px 600px at 100% -10%, rgba(180,89,58,0.06), transparent 60%),
+    radial-gradient(900px 500px at -10% 110%, rgba(63,90,63,0.05), transparent 60%),
+    var(--paper);
+}
+
+/* Placeholder image — subtle stripes */
+.placeholder-stripes {
+  background-image: repeating-linear-gradient(
+    135deg,
+    #E3DCCD 0,
+    #E3DCCD 8px,
+    #ECE6D9 8px,
+    #ECE6D9 16px
+  );
+}
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 10px 14px; border-radius: 999px; border: 1px solid var(--line-2);
+  background: var(--card); color: var(--ink); font-weight: 500; font-size: 14px;
+  transition: background 120ms ease, transform 80ms ease, border-color 120ms ease;
+}
+.btn:hover { background: #FBF7EE; }
+.btn:active { transform: scale(0.98); }
+.btn.primary { background: var(--ink); color: #FBF7EE; border-color: var(--ink); }
+.btn.primary:hover { background: #2C2924; }
+.btn.accent { background: var(--accent); color: #FFF6EF; border-color: var(--accent); }
+.btn.ghost { background: transparent; border-color: transparent; }
+
+.tag {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 10px; border-radius: 999px;
+  background: #FBF7EE; border: 1px solid var(--line);
+  font-size: 12px; color: var(--ink-2);
+}
+
+.dot { width: 6px; height: 6px; border-radius: 999px; display: inline-block; }
+.dot.green { background: var(--moss); }
+.dot.warn  { background: var(--warn); }
+.dot.red   { background: #B4453A; }
+
+/* Scrollbars on mobile */
+.scroll-y { overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.scroll-y::-webkit-scrollbar { width: 0; height: 0; }

@@ -84,7 +84,14 @@ function ScreenOverview({listing, onOpenFloor, onOpenRoom, onContact}) {
     <div className="scroll-y" style={{height:"100%", background:"var(--paper)", paddingBottom:30}}>
       {/* Hero */}
       <div style={{position:"relative", padding:"0 0 0 0"}}>
-        <PhotoSlot label="HERO · FRONT EXTERIOR" ratio="4/4.2" style={{borderRadius:0, borderLeft:0, borderRight:0, borderTop:0}}/>
+        {listing.heroPhoto ? (
+          <img src={listing.heroPhoto} alt="" style={{
+            display:"block", width:"100%", aspectRatio:"4/4.2", objectFit:"cover",
+            borderRadius:0, border:"none"
+          }}/>
+        ) : (
+          <PhotoSlot label="HERO · FRONT EXTERIOR" ratio="4/4.2" style={{borderRadius:0, borderLeft:0, borderRight:0, borderTop:0}}/>
+        )}
         <div style={{position:"absolute", top:14, left:14, right:14, display:"flex", justifyContent:"space-between"}}>
           <span className="tag" style={{background:"rgba(255,255,255,0.92)"}}>
             <span className="dot green"/> Open House · Sat 11–1

@@ -1,4 +1,4 @@
-// Edited via /admin.html on 5/13/2026, 7:09:34 PM
+// Edited via /admin.html on 5/13/2026, 7:20:24 PM
 window.LISTING = {
   "id": "120-summer-ave",
   "status": "active",
@@ -23,7 +23,7 @@ window.LISTING = {
   "sqft": 2136,
   "lotSqft": 13068,
   "yearBuilt": 1900,
-  "heroPhoto": "https://photos.zillowstatic.com/fp/76f1e9e03459fd20435ccae6be579060-uncropped_scaled_within_1536_1152.webp",
+  "heroPhoto": "https://photos.zillowstatic.com/fp/7b3fdd499849cc6badf2072941288c40-uncropped_scaled_within_1536_1152.webp",
   "highlights": [
     "Mantled fireplace",
     "Built-in hutch",
@@ -196,7 +196,7 @@ window.LISTING = {
             "0.3 acres",
             "Mature trees"
           ],
-          "description": "A tenth-of-an-acre lot with mature trees and room to breathe — rare for this part of Reading.",
+          "description": "A tenth-of-an-acre lot with mature trees and room to breathe — rare for this part of Reading.  Tree house has electrical run to it!  Great side yard, right next to the driveway leads right into a mudroom/foyer area!",
           "photos": [
             "https://photos.zillowstatic.com/fp/7b3fdd499849cc6badf2072941288c40-uncropped_scaled_within_1536_1152.webp",
             "https://photos.zillowstatic.com/fp/5a08bc4afc3718e7009555898939a89d-uncropped_scaled_within_1536_1152.webp"

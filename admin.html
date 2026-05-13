@@ -51,54 +51,94 @@
 
   const STORAGE_KEY = "roomer.listing.v1";
 
-  function loadListing() {
+  async function loadListing() {
+    const id = window.LISTING?.id;
+    if (id) {
+      try {
+        const r = await fetch(`/api/listing/${id}`);
+        if (r.ok) {
+          const data = await r.json();
+          try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch(e) {}
+          return data;
+        }
+      } catch(e) {}
+    }
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) return JSON.parse(raw);
-    } catch (e) {}
+    } catch(e) {}
     return window.LISTING;
   }
 
-  function downloadDataFile(listing) {
-    const js = "// Edited via /admin.html on " + new Date().toLocaleString() + "\n"
-             + "window.LISTING = " + JSON.stringify(listing, null, 2) + ";\n";
-    const blob = new Blob([js], { type: "text/javascript" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url; a.download = "data.js";
-    document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    setTimeout(() => URL.revokeObjectURL(url), 0);
+  async function saveListing(listing) {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(listing)); } catch(e) {}
+    const r = await fetch(`/api/listing/${listing.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(listing),
+    });
+    if (!r.ok) {
+      const { error } = await r.json().catch(() => ({}));
+      throw new Error(error || `HTTP ${r.status}`);
+    }
   }
 
   function resetToFile() {
-    if (!confirm("Reset to the data.js shipped in the repo? Your in-browser edits will be lost.")) return;
+    if (!confirm("Reset to the data.js shipped in the repo? Your cloud-saved edits will be lost.")) return;
     localStorage.removeItem(STORAGE_KEY);
     location.reload();
   }
 
   function AdminRoot() {
-    const [listing, setListing] = useState(() => loadListing());
+    const [listing, setListing] = useState(null);
+    const [saveStatus, setSaveStatus] = useState("loading");
     const [savedAt, setSavedAt] = useState(null);
-    const firstRender = useRef(true);
+    const [saveError, setSaveError] = useState(null);
+    const saveTimer = useRef(null);
+    const isInitialized = useRef(false);
 
-    // Auto-save to localStorage on every change
     useEffect(() => {
-      if (firstRender.current) { firstRender.current = false; return; }
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(listing));
-        setSavedAt(new Date());
-      } catch (e) {
-        console.error("Could not save to localStorage", e);
-        alert(
-          "Heads up — out of browser storage.\n\n" +
-          "Photos are taking too much room. Either:\n" +
-          "• Click 'Export data.js' now to save your work to disk, then refresh and reduce some photos, or\n" +
-          "• Remove a few photos to free space."
-        );
-      }
+      loadListing().then(data => {
+        setListing(data);
+        setSaveStatus("saved");
+      });
+    }, []);
+
+    // Auto-save to API (debounced 1.5s after each change)
+    useEffect(() => {
+      if (!listing) return;
+      if (!isInitialized.current) { isInitialized.current = true; return; }
+      setSaveStatus("saving");
+      setSaveError(null);
+      clearTimeout(saveTimer.current);
+      saveTimer.current = setTimeout(async () => {
+        try {
+          await saveListing(listing);
+          setSavedAt(new Date());
+          setSaveStatus("saved");
+        } catch(e) {
+          setSaveStatus("error");
+          setSaveError(e.message);
+        }
+      }, 1500);
+      return () => clearTimeout(saveTimer.current);
     }, [listing]);
 
-    const fmtSaved = savedAt ? "saved · " + savedAt.toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"}) : "auto-save on";
+    if (!listing) {
+      return (
+        <div style={{display:"flex", alignItems:"center", justifyContent:"center",
+          height:"100vh", color:"var(--muted)", fontSize:14}}>
+          Loading…
+        </div>
+      );
+    }
+
+    const statusLabel =
+      saveStatus === "loading" ? "loading…" :
+      saveStatus === "saving"  ? "saving…" :
+      saveStatus === "error"   ? ("⚠ " + (saveError || "save failed")) :
+      savedAt ? ("saved · " + savedAt.toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"})) :
+      "ready";
 
     return (
       <>
@@ -108,9 +148,11 @@
             <a href="./index.html" target="_blank">↗ Preview consumer view</a>
           </div>
           <div className="actions">
-            <span className="saved">{fmtSaved}</span>
+            <span className="saved" style={{color: saveStatus === "error" ? "#E8825A" : undefined}}
+              title={saveStatus === "error" ? saveError : undefined}>
+              {statusLabel}
+            </span>
             <button className="ghost" onClick={resetToFile}>Reset</button>
-            <button onClick={() => downloadDataFile(listing)}>Export data.js</button>
           </div>
         </div>
         <div className="admin-root">

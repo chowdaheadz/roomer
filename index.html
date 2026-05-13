@@ -46,8 +46,15 @@
 
 <script type="text/babel" data-presets="env,react">
   const { useState } = React;
+  const STORAGE_KEY = "roomer.listing.v1";
+  let listing = window.LISTING;
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) listing = JSON.parse(raw);
+  } catch (e) {}
+
   ReactDOM.createRoot(document.getElementById("root")).render(
-    <ConsumerApp listing={window.LISTING}/>
+    <ConsumerApp listing={listing}/>
   );
 </script>
 

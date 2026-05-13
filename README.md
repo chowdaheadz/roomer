@@ -6,18 +6,42 @@ A digital open-house companion. Buyers scan a QR code on the front door, get a r
 
 | File | What it does |
 | --- | --- |
-| `index.html` | The whole app — loads React + the consumer view |
-| `consumer.jsx` | The React component (overview + room detail) |
-| `data.js` | **Edit this** — the listing data (rooms, descriptions, photos, agent info) |
+| `index.html` | Consumer page — what buyers see when they scan |
+| `admin.html` | **Agent admin panel** — edit listings, rooms, photos, get the QR |
+| `consumer.jsx` | The React consumer view |
+| `admin.jsx` | The React admin UI |
+| `data.js` | **The source of truth** — listing data (rooms, descriptions, agent info) |
 | `styles.css` | Shared styles (warm paper aesthetic) |
 
-No build step. No node_modules. It's a single static page that runs React in the browser. Good enough for one weekend, one listing.
+No build step. No node_modules. Static HTML that runs React in the browser.
 
 ---
 
-## Friday night — fill in the TODOs
+## Two ways to edit the listing
 
-Open `data.js` and search for `// TODO`. There are about a dozen — kitchen details, all three bedrooms, both upstairs baths, and the price. Should be a 15-minute conversation.
+### A. Edit through the admin UI (easier — your wife can do this)
+
+1. Open `/admin.html` (e.g. `roomer-summer-ave.vercel.app/admin.html`)
+2. Click any room to edit name / sqft / highlights / description / photos.
+3. Edits auto-save to **browser localStorage** — they'll persist if she reloads on the same device, but **only in that browser**.
+4. When she's happy with everything, click **Export data.js** in the top bar. That downloads a finished `data.js`.
+5. Drop that file into the repo (replacing the old `data.js`), push to GitHub. Vercel redeploys. Done.
+
+> **Why the export step?** This is a static site — no database. localStorage is per-device. Exporting and committing the file is what makes the changes show up for buyers scanning the QR.
+
+### B. Edit `data.js` directly
+
+Open `data.js` in any text editor. Search for `// TODO`. Fill in the blanks. Push.
+
+There are about a dozen TODOs — kitchen details, all three bedrooms, both upstairs baths, and the price. ~15 minutes.
+
+---
+
+## Friday night plan
+
+Pour a glass of wine. Open `/admin.html` (or edit `data.js`).
+
+Search for `// TODO`. There are about a dozen — kitchen details, all three bedrooms, both upstairs baths, and the price. Should be a 15-minute conversation.
 
 For room photos: you can either
 1. Drop image URLs into the `photos: []` array in `data.js` (easiest if you host on Imgur / Cloudinary), or

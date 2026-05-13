@@ -1,33 +1,9 @@
-const KV_URL   = () => process.env.KV_REST_API_URL;
-const KV_TOKEN  = () => process.env.KV_REST_API_TOKEN;
-const kvHeader  = () => ({ Authorization: `Bearer ${KV_TOKEN()}` });
-
-async function kvGet(key) {
-  const r = await fetch(`${KV_URL()}/get/${encodeURIComponent(key)}`, { headers: kvHeader() });
-  const { result } = await r.json();
-  if (result == null) return null;
-  return typeof result === 'string' ? JSON.parse(result) : result;
-}
-
-async function kvSet(key, value) {
-  await fetch(`${KV_URL()}/set/${encodeURIComponent(key)}`, {
-    method: 'POST',
-    headers: { ...kvHeader(), 'Content-Type': 'application/json' },
-    body: JSON.stringify(value),
-  });
-}
-
-async function kvSadd(setKey, member) {
-  await fetch(`${KV_URL()}/sadd/${encodeURIComponent(setKey)}/${encodeURIComponent(member)}`, {
-    method: 'POST',
-    headers: kvHeader(),
-  });
-}
+import { put, list, del } from '@vercel/blob';
 
 export default async function handler(req, res) {
-  if (!KV_URL() || !KV_TOKEN()) {
+  if (!process.env.BLOB_READ_WRITE_TOKEN) {
     return res.status(503).json({
-      error: 'Storage not configured. Add a Vercel KV store to this project in the Vercel dashboard.',
+      error: 'Storage not configured. Add a Vercel Blob store to this project in the Vercel dashboard.',
     });
   }
 
@@ -36,13 +12,15 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Invalid listing id' });
   }
 
+  const pathname = `listing-${id}.json`;
   res.setHeader('Cache-Control', 'no-store');
 
   try {
     if (req.method === 'GET') {
-      const listing = await kvGet(`listing:${id}`);
-      if (!listing) return res.status(404).json({ error: 'Not found' });
-      return res.json(listing);
+      const { blobs } = await list({ prefix: pathname, limit: 1 });
+      if (!blobs.length) return res.status(404).json({ error: 'Not found' });
+      const r = await fetch(blobs[0].url);
+      return res.json(await r.json());
     }
 
     if (req.method === 'PUT') {
@@ -50,14 +28,21 @@ export default async function handler(req, res) {
       if (!listing || typeof listing !== 'object') {
         return res.status(400).json({ error: 'Request body must be a JSON object' });
       }
-      await kvSet(`listing:${id}`, listing);
-      await kvSadd('listing_ids', id);
+      // Delete any existing blob(s) for this listing, then write fresh
+      const { blobs } = await list({ prefix: pathname });
+      if (blobs.length) await del(blobs.map(b => b.url));
+      await put(pathname, JSON.stringify(listing), {
+        access: 'public',
+        addRandomSuffix: false,
+        contentType: 'application/json',
+        cacheControlMaxAge: 0,
+      });
       return res.json({ ok: true });
     }
 
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (e) {
-    console.error('KV error:', e);
+    console.error('Blob error:', e);
     return res.status(503).json({ error: 'Storage request failed' });
   }
 }

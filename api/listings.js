@@ -1,39 +1,9 @@
-const KV_URL   = () => process.env.KV_REST_API_URL;
-const KV_TOKEN  = () => process.env.KV_REST_API_TOKEN;
-const kvHeader  = () => ({ Authorization: `Bearer ${KV_TOKEN()}` });
-
-async function kvGet(key) {
-  const r = await fetch(`${KV_URL()}/get/${encodeURIComponent(key)}`, { headers: kvHeader() });
-  const { result } = await r.json();
-  if (result == null) return null;
-  return typeof result === 'string' ? JSON.parse(result) : result;
-}
-
-async function kvSet(key, value) {
-  await fetch(`${KV_URL()}/set/${encodeURIComponent(key)}`, {
-    method: 'POST',
-    headers: { ...kvHeader(), 'Content-Type': 'application/json' },
-    body: JSON.stringify(value),
-  });
-}
-
-async function kvSadd(setKey, member) {
-  await fetch(`${KV_URL()}/sadd/${encodeURIComponent(setKey)}/${encodeURIComponent(member)}`, {
-    method: 'POST',
-    headers: kvHeader(),
-  });
-}
-
-async function kvSmembers(setKey) {
-  const r = await fetch(`${KV_URL()}/smembers/${encodeURIComponent(setKey)}`, { headers: kvHeader() });
-  const { result } = await r.json();
-  return result || [];
-}
+import { put, list, del } from '@vercel/blob';
 
 export default async function handler(req, res) {
-  if (!KV_URL() || !KV_TOKEN()) {
+  if (!process.env.BLOB_READ_WRITE_TOKEN) {
     return res.status(503).json({
-      error: 'Storage not configured. Add a Vercel KV store to this project in the Vercel dashboard.',
+      error: 'Storage not configured. Add a Vercel Blob store to this project in the Vercel dashboard.',
     });
   }
 
@@ -41,10 +11,16 @@ export default async function handler(req, res) {
 
   try {
     if (req.method === 'GET') {
-      const ids = await kvSmembers('listing_ids');
-      if (!ids.length) return res.json([]);
+      const { blobs } = await list({ prefix: 'listing-', limit: 100 });
+      // Only match our listing files (listing-{id}.json)
+      const listingBlobs = blobs.filter(b => /^listing-[\w-]+\.json$/.test(b.pathname));
 
-      const listings = await Promise.all(ids.map(id => kvGet(`listing:${id}`)));
+      const listings = await Promise.all(
+        listingBlobs.map(async b => {
+          try { return await (await fetch(b.url)).json(); } catch { return null; }
+        })
+      );
+
       const summaries = listings.filter(Boolean).map(l => ({
         id: l.id,
         address: l.address,
@@ -65,14 +41,21 @@ export default async function handler(req, res) {
       if (!listing?.id || !/^[\w-]+$/.test(listing.id)) {
         return res.status(400).json({ error: 'listing.id is required (alphanumeric + dashes only)' });
       }
-      await kvSet(`listing:${listing.id}`, listing);
-      await kvSadd('listing_ids', listing.id);
+      const pathname = `listing-${listing.id}.json`;
+      const { blobs } = await list({ prefix: pathname });
+      if (blobs.length) await del(blobs.map(b => b.url));
+      await put(pathname, JSON.stringify(listing), {
+        access: 'public',
+        addRandomSuffix: false,
+        contentType: 'application/json',
+        cacheControlMaxAge: 0,
+      });
       return res.status(201).json({ id: listing.id });
     }
 
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (e) {
-    console.error('KV error:', e);
+    console.error('Blob error:', e);
     return res.status(503).json({ error: 'Storage request failed' });
   }
 }

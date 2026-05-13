@@ -47,15 +47,29 @@
 <script type="text/babel" data-presets="env,react">
   const { useState } = React;
   const STORAGE_KEY = "roomer.listing.v1";
-  let listing = window.LISTING;
+
+  // Render immediately from local cache to avoid a blank flash
+  let initialListing = window.LISTING;
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) listing = JSON.parse(raw);
-  } catch (e) {}
+    if (raw) initialListing = JSON.parse(raw);
+  } catch(e) {}
 
-  ReactDOM.createRoot(document.getElementById("root")).render(
-    <ConsumerApp listing={listing}/>
-  );
+  const root = ReactDOM.createRoot(document.getElementById("root"));
+  root.render(<ConsumerApp listing={initialListing}/>);
+
+  // Fetch live data from the API (?id=listing-id in URL, or fall back to default)
+  const listingId = new URLSearchParams(window.location.search).get("id") || window.LISTING?.id;
+  if (listingId) {
+    fetch(`/api/listing/${listingId}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (!data) return;
+        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch(e) {}
+        root.render(<ConsumerApp listing={data}/>);
+      })
+      .catch(() => {});
+  }
 </script>
 
 </body>

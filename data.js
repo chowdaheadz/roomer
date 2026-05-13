@@ -23,7 +23,7 @@ window.LISTING = {
   "sqft": 2136,
   "lotSqft": 13068,
   "yearBuilt": 1900,
-  "heroPhoto": "https://photos.zillowstatic.com/fp/aa6bfcc7b10a38bb7db41fe0271cd878-cc_ft_768.webp",
+  "heroPhoto": "https://photos.zillowstatic.com/fp/aa6bfcc7b10a38bb7db41fe0271cd878-uncropped_scaled_within_1536_1152.webp",
   "highlights": [
     "Mantled fireplace",
     "Built-in hutch",

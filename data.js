@@ -1,4 +1,4 @@
-// Edited via /admin.html on 5/13/2026, 7:04:12 PM
+// Edited via /admin.html on 5/13/2026, 7:09:34 PM
 window.LISTING = {
   "id": "120-summer-ave",
   "status": "active",
@@ -23,7 +23,7 @@ window.LISTING = {
   "sqft": 2136,
   "lotSqft": 13068,
   "yearBuilt": 1900,
-  "heroPhoto": "https://photos.zillowstatic.com/fp/aa6bfcc7b10a38bb7db41fe0271cd878-uncropped_scaled_within_1536_1152.webp",
+  "heroPhoto": "https://photos.zillowstatic.com/fp/76f1e9e03459fd20435ccae6be579060-uncropped_scaled_within_1536_1152.webp",
   "highlights": [
     "Mantled fireplace",
     "Built-in hutch",

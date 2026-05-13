@@ -85,7 +85,7 @@ function ScreenOverview({listing, onOpenFloor, onOpenRoom, onContact}) {
       {/* Hero */}
       <div style={{position:"relative", padding:"0 0 0 0"}}>
         {listing.heroPhoto ? (
-          <img src={listing.heroPhoto} alt="" style={{
+          <img src={listing.heroPhoto} alt="" referrerPolicy="no-referrer" style={{
             display:"block", width:"100%", aspectRatio:"4/4.2", objectFit:"cover",
             borderRadius:0, border:"none"
           }}/>
@@ -264,7 +264,7 @@ function ScreenRoom({listing, floorId, roomId, onBack, onPrev, onNext}) {
       {/* hero photo */}
       <div style={{padding:"14px 16px 0"}}>
         {room.photos.length > 0 ? (
-          <img src={room.photos[0]} style={{width:"100%", aspectRatio:"4/3", objectFit:"cover", borderRadius:16, border:"1px solid var(--line)"}}/>
+          <img src={room.photos[0]} referrerPolicy="no-referrer" style={{width:"100%", aspectRatio:"4/3", objectFit:"cover", borderRadius:16, border:"1px solid var(--line)"}}/>
         ) : (
           <PhotoSlot label={`${room.name.toUpperCase()} · PHOTO`} ratio="4/3"/>
         )}
@@ -272,7 +272,7 @@ function ScreenRoom({listing, floorId, roomId, onBack, onPrev, onNext}) {
         {room.photos.length > 1 && (
           <div style={{display:"flex", gap:8, marginTop:8, overflowX:"auto"}}>
             {room.photos.slice(1).map((p,i)=>(
-              <img key={i} src={p} style={{width:72, height:72, objectFit:"cover", borderRadius:8, border:"1px solid var(--line)"}}/>
+              <img key={i} src={p} referrerPolicy="no-referrer" style={{width:72, height:72, objectFit:"cover", borderRadius:8, border:"1px solid var(--line)"}}/>
             ))}
           </div>
         )}

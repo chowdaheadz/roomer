@@ -337,6 +337,15 @@ function ScreenRoom({listing, floorId, roomId, onBack, onPrev, onNext}) {
           <Icon.Chevron dir="right"/>
         </button>
       </div>
+
+      {/* all rooms */}
+      <div style={{padding:"0 22px 40px", textAlign:"center"}}>
+        <button className="btn ghost" onClick={onBack}
+          style={{width:"100%", justifyContent:"center", gap:6}}>
+          <Icon.Chevron dir="left"/>
+          All Rooms
+        </button>
+      </div>
     </div>
   );
 }

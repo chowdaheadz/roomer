@@ -318,14 +318,6 @@ function ScreenRoom({listing, floorId, roomId, onBack, onPrev, onNext}) {
         )}
       </div>
 
-      {/* read-aloud placeholder */}
-      <div style={{padding:"18px 22px 0"}}>
-        <button className="btn" style={{width:"100%", justifyContent:"center"}} disabled>
-          <span style={{width:8, height:8, borderRadius:999, background:"var(--accent)"}}/>
-          Read aloud (coming soon)
-        </button>
-      </div>
-
       {/* prev / next */}
       <div style={{padding:"24px 22px 40px", display:"grid", gridTemplateColumns:"1fr 1fr", gap:10}}>
         <button className="btn" disabled={!prevRoom} onClick={()=>prevRoom && onPrev(floorId, prevRoom.id)}

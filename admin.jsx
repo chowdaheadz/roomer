@@ -9,7 +9,7 @@ function slugify(str) {
   return str.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60);
 }
 
-function createBlankListing({ line1, city, state, zip, agentName, agentPhone, price, beds, baths }) {
+function createBlankListing({ line1, city, state, zip, agentName, agentPhone, price, beds, baths, sqft, yearBuilt, blurb, heroUrl }) {
   const id = slugify(`${line1}-${city}-${state}`);
   return {
     id,
@@ -17,13 +17,15 @@ function createBlankListing({ line1, city, state, zip, agentName, agentPhone, pr
     agent: { name: agentName || "", phone: agentPhone || "", email: "", brokerage: "" },
     address: { line1: line1.trim(), city: city.trim(), state: state.trim(), zip: (zip || "").trim() },
     headline: "",
-    blurb: "",
-    price: price ? parseInt(price) || null : null,
-    beds:  beds  ? parseInt(beds)  || null : null,
-    baths: baths ? parseInt(baths) || null : null,
+    blurb: blurb || "",
+    price:     price     ? parseInt(price)     || null : null,
+    beds:      beds      ? parseInt(beds)      || null : null,
+    baths:     baths     ? parseInt(baths)     || null : null,
     halfBaths: 0,
-    sqft: null, lotSqft: null, yearBuilt: null,
-    heroPhoto: null,
+    sqft:      sqft      ? parseInt(sqft)      || null : null,
+    lotSqft:   null,
+    yearBuilt: yearBuilt ? parseInt(yearBuilt) || null : null,
+    heroPhoto: heroUrl || null,
     highlights: [],
     floors: [{ id: "first", name: "First Floor", rooms: [] }],
   };
@@ -124,10 +126,59 @@ function NewListingModal({onClose, onCreate}) {
     line1:"", city:"", state:"MA", zip:"",
     agentName:"", agentPhone:"", price:"", beds:"", baths:"",
   });
+  const [extras, setExtras] = useStateA({}); // sqft, yearBuilt, blurb, heroUrl from scrape
   const [busy, setBusy] = useStateA(false);
   const [error, setError] = useStateA(null);
 
+  // --- URL import ---
+  const [importUrl, setImportUrl] = useStateA("");
+  const [importing, setImporting] = useStateA(false);
+  const [importResult, setImportResult] = useStateA(null); // {ok, summary} | {error}
+
   const set = (key, val) => setFormA(f => ({...f, [key]: val}));
+
+  const handleImport = async () => {
+    const url = importUrl.trim();
+    if (!url) return;
+    setImporting(true);
+    setImportResult(null);
+    try {
+      const r = await fetch("/api/scrape", {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({ url }),
+      });
+      const json = await r.json();
+      if (json.ok && json.data) {
+        const d = json.data;
+        setFormA(f => ({
+          ...f,
+          line1: d.line1 || f.line1,
+          city:  d.city  || f.city,
+          state: d.state || f.state,
+          zip:   d.zip   || f.zip,
+          price: d.price || f.price,
+          beds:  d.beds  || f.beds,
+          baths: d.baths || f.baths,
+        }));
+        setExtras({ sqft:d.sqft, yearBuilt:d.yearBuilt, blurb:d.blurb, heroUrl:d.heroUrl });
+        const parts = [
+          d.line1 && `${d.line1}${d.city ? ", "+d.city : ""}${d.state ? " "+d.state : ""}`,
+          d.price && "$"+parseInt(d.price).toLocaleString(),
+          d.beds  && d.beds+" beds",
+          d.baths && d.baths+" baths",
+          d.sqft  && parseInt(d.sqft).toLocaleString()+" sqft",
+        ].filter(Boolean);
+        setImportResult({ ok:true, summary: parts.join(" · ") });
+      } else {
+        setImportResult({ error: json.error || "Import failed — fill in the fields below manually." });
+      }
+    } catch(e) {
+      setImportResult({ error: "Network error during import." });
+    } finally {
+      setImporting(false);
+    }
+  };
 
   const submit = async () => {
     if (!form.line1.trim() || !form.city.trim()) {
@@ -136,7 +187,7 @@ function NewListingModal({onClose, onCreate}) {
     }
     setBusy(true); setError(null);
     try {
-      const listing = createBlankListing(form);
+      const listing = createBlankListing({ ...form, ...extras });
       const r = await fetch("/api/listings", {
         method:"POST",
         headers:{"Content-Type":"application/json"},
@@ -157,7 +208,8 @@ function NewListingModal({onClose, onCreate}) {
       display:"flex", alignItems:"center", justifyContent:"center", padding:30
     }} onClick={onClose}>
       <div onClick={e=>e.stopPropagation()} style={{
-        width:"min(560px,96%)", background:"var(--paper)", borderRadius:16,
+        width:"min(580px,96%)", maxHeight:"92vh", overflowY:"auto",
+        background:"var(--paper)", borderRadius:16,
         border:"1px solid var(--line-2)", boxShadow:"0 30px 80px rgba(0,0,0,0.25)"
       }}>
         <div style={{padding:"18px 22px", borderBottom:"1px solid var(--line)", display:"flex", justifyContent:"space-between", alignItems:"center"}}>
@@ -166,6 +218,38 @@ function NewListingModal({onClose, onCreate}) {
         </div>
 
         <div style={{padding:22}}>
+
+          {/* ── URL import ── */}
+          <div style={{marginBottom:20, padding:16, borderRadius:12, background:"var(--card)", border:"1px solid var(--line)"}}>
+            <div className="mono" style={{fontSize:10, color:"var(--muted)", letterSpacing:".1em", marginBottom:10}}>
+              IMPORT FROM ZILLOW / REDFIN / MLS
+            </div>
+            <div style={{display:"flex", gap:8}}>
+              <input
+                style={{...inp, marginBottom:0, flex:1}}
+                placeholder="Paste listing URL and we'll fill in the details…"
+                value={importUrl}
+                onChange={e => { setImportUrl(e.target.value); setImportResult(null); }}
+                onKeyDown={e => e.key==="Enter" && (e.preventDefault(), handleImport())}
+              />
+              <button className="btn primary" onClick={handleImport} disabled={importing || !importUrl.trim()}
+                style={{flexShrink:0, minWidth:80}}>
+                {importing ? "…" : "Import"}
+              </button>
+            </div>
+            {importResult?.ok && (
+              <div style={{marginTop:10, padding:"8px 12px", borderRadius:8, background:"#EFF3EB", border:"1px solid #D4DFCB", fontSize:12, color:"#3F5A3F"}}>
+                ✓ {importResult.summary || "Imported — review the fields below"}
+              </div>
+            )}
+            {importResult?.error && (
+              <div style={{marginTop:10, padding:"8px 12px", borderRadius:8, background:"#FBF1DC", border:"1px solid #EFDDB1", fontSize:12, color:"#7A5512"}}>
+                {importResult.error}
+              </div>
+            )}
+          </div>
+
+          {/* ── form ── */}
           {error && (
             <div style={{padding:"10px 14px", borderRadius:8, background:"#FBF1DC", border:"1px solid #EFDDB1", color:"#7A5512", fontSize:13, marginBottom:16}}>
               {error}
@@ -179,29 +263,40 @@ function NewListingModal({onClose, onCreate}) {
               onKeyDown={e=>e.key==="Enter"&&submit()}/>
           </Field>
           <div style={{display:"grid", gridTemplateColumns:"2fr 1fr 1fr", gap:10}}>
-            <Field label="City *">
-              <input style={inp} placeholder="Reading" value={form.city} onChange={e=>set("city",e.target.value)}/>
-            </Field>
-            <Field label="State">
-              <input style={inp} placeholder="MA" value={form.state} onChange={e=>set("state",e.target.value)}/>
-            </Field>
-            <Field label="Zip">
-              <input style={inp} placeholder="01867" value={form.zip} onChange={e=>set("zip",e.target.value)}/>
-            </Field>
+            <Field label="City *"><input style={inp} placeholder="Reading" value={form.city} onChange={e=>set("city",e.target.value)}/></Field>
+            <Field label="State"><input style={inp} placeholder="MA" value={form.state} onChange={e=>set("state",e.target.value)}/></Field>
+            <Field label="Zip"><input style={inp} placeholder="01867" value={form.zip} onChange={e=>set("zip",e.target.value)}/></Field>
           </div>
 
-          <div className="mono" style={{fontSize:10, color:"var(--muted)", letterSpacing:".1em", margin:"4px 0 10px"}}>DETAILS <span style={{opacity:.5}}>(optional)</span></div>
+          <div className="mono" style={{fontSize:10, color:"var(--muted)", letterSpacing:".1em", margin:"4px 0 10px"}}>
+            DETAILS <span style={{opacity:.5}}>(optional)</span>
+          </div>
           <div style={{display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:10}}>
             <Field label="List price"><input style={inp} type="number" placeholder="899000" value={form.price} onChange={e=>set("price",e.target.value)}/></Field>
             <Field label="Beds"><input style={inp} type="number" placeholder="3" value={form.beds} onChange={e=>set("beds",e.target.value)}/></Field>
             <Field label="Baths"><input style={inp} type="number" placeholder="2" value={form.baths} onChange={e=>set("baths",e.target.value)}/></Field>
           </div>
 
-          <div className="mono" style={{fontSize:10, color:"var(--muted)", letterSpacing:".1em", margin:"4px 0 10px"}}>AGENT <span style={{opacity:.5}}>(optional)</span></div>
+          <div className="mono" style={{fontSize:10, color:"var(--muted)", letterSpacing:".1em", margin:"4px 0 10px"}}>
+            AGENT <span style={{opacity:.5}}>(optional)</span>
+          </div>
           <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:10}}>
             <Field label="Agent name"><input style={inp} placeholder="Jane Smith" value={form.agentName} onChange={e=>set("agentName",e.target.value)}/></Field>
             <Field label="Agent phone"><input style={inp} placeholder="(555) 000-0000" value={form.agentPhone} onChange={e=>set("agentPhone",e.target.value)}/></Field>
           </div>
+
+          {/* Show extra fields pulled from scrape */}
+          {(extras.sqft || extras.yearBuilt || extras.blurb || extras.heroUrl) && (
+            <div style={{marginTop:8, padding:"10px 14px", borderRadius:8, background:"var(--card)", border:"1px solid var(--line)", fontSize:12, color:"var(--ink-2)"}}>
+              <div className="mono" style={{fontSize:9, letterSpacing:".1em", color:"var(--muted)", marginBottom:6}}>ALSO IMPORTED</div>
+              <div style={{display:"flex", flexWrap:"wrap", gap:8}}>
+                {extras.sqft      && <span>📐 {parseInt(extras.sqft).toLocaleString()} sqft</span>}
+                {extras.yearBuilt && <span>🏗 Built {extras.yearBuilt}</span>}
+                {extras.blurb     && <span>📝 Description</span>}
+                {extras.heroUrl   && <span>🖼 Hero photo</span>}
+              </div>
+            </div>
+          )}
         </div>
 
         <div style={{padding:"14px 22px", borderTop:"1px solid var(--line)", display:"flex", justifyContent:"flex-end", gap:10}}>

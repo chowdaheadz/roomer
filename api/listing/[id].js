@@ -40,6 +40,12 @@ export default async function handler(req, res) {
       return res.json({ ok: true });
     }
 
+    if (req.method === 'DELETE') {
+      const { blobs } = await list({ prefix: pathname });
+      if (blobs.length) await del(blobs.map(b => b.url));
+      return res.json({ ok: true });
+    }
+
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (e) {
     console.error('Blob error:', e);

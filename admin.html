@@ -49,67 +49,71 @@
 <script type="text/babel" data-presets="env,react">
   const { useState, useEffect, useRef } = React;
 
-  const STORAGE_KEY = "roomer.listing.v1";
+  const lsKey = (id) => `roomer.listing.${id}`;
 
-  async function loadListing() {
-    const id = window.LISTING?.id;
-    if (id) {
-      try {
-        const r = await fetch(`/api/listing/${id}`);
-        if (r.ok) {
-          const data = await r.json();
-          try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch(e) {}
-          return data;
-        }
-      } catch(e) {}
-    }
+  async function openListing(id, { setListing, setView, setSaveStatus, isInitialized }) {
+    setSaveStatus("loading");
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) return JSON.parse(raw);
+      const r = await fetch(`/api/listing/${id}`);
+      if (r.ok) {
+        const data = await r.json();
+        try { localStorage.setItem(lsKey(id), JSON.stringify(data)); } catch(e) {}
+        isInitialized.current = false;
+        setListing(data);
+        setView("property");
+        setSaveStatus("saved");
+        return;
+      }
     } catch(e) {}
-    return window.LISTING;
+    // Fall back to localStorage
+    try {
+      const raw = localStorage.getItem(lsKey(id));
+      if (raw) {
+        isInitialized.current = false;
+        setListing(JSON.parse(raw));
+        setView("property");
+        setSaveStatus("saved");
+        return;
+      }
+    } catch(e) {}
+    setSaveStatus("idle");
+    alert("Could not load listing. Please check your connection and try again.");
   }
 
   async function saveListing(listing) {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(listing)); } catch(e) {}
+    try { localStorage.setItem(lsKey(listing.id), JSON.stringify(listing)); } catch(e) {}
     const r = await fetch(`/api/listing/${listing.id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(listing),
     });
-    if (!r.ok) {
-      const { error } = await r.json().catch(() => ({}));
-      throw new Error(error || `HTTP ${r.status}`);
-    }
-  }
-
-  function resetToFile() {
-    if (!confirm("Reset to the data.js shipped in the repo? Your cloud-saved edits will be lost.")) return;
-    localStorage.removeItem(STORAGE_KEY);
-    location.reload();
+    if (!r.ok) throw new Error(((await r.json().catch(()=>({}))).error) || `HTTP ${r.status}`);
   }
 
   function AdminRoot() {
+    const [view, setView] = useState("listings");
     const [listing, setListing] = useState(null);
-    const [saveStatus, setSaveStatus] = useState("loading");
+    const [saveStatus, setSaveStatus] = useState("idle");
     const [savedAt, setSavedAt] = useState(null);
-    const [saveError, setSaveError] = useState(null);
     const saveTimer = useRef(null);
     const isInitialized = useRef(false);
 
-    useEffect(() => {
-      loadListing().then(data => {
-        setListing(data);
-        setSaveStatus("saved");
-      });
-    }, []);
+    const handleOpenListing = (id) =>
+      openListing(id, { setListing, setView, setSaveStatus, isInitialized });
 
-    // Auto-save to API (debounced 1.5s after each change)
+    const handleBack = () => {
+      clearTimeout(saveTimer.current);
+      setView("listings");
+      setListing(null);
+      isInitialized.current = false;
+      setSaveStatus("idle");
+    };
+
+    // Auto-save (debounced 1.5s) whenever the active listing changes
     useEffect(() => {
       if (!listing) return;
       if (!isInitialized.current) { isInitialized.current = true; return; }
       setSaveStatus("saving");
-      setSaveError(null);
       clearTimeout(saveTimer.current);
       saveTimer.current = setTimeout(async () => {
         try {
@@ -118,45 +122,46 @@
           setSaveStatus("saved");
         } catch(e) {
           setSaveStatus("error");
-          setSaveError(e.message);
+          console.error("Save failed:", e);
         }
       }, 1500);
       return () => clearTimeout(saveTimer.current);
     }, [listing]);
 
-    if (!listing) {
-      return (
-        <div style={{display:"flex", alignItems:"center", justifyContent:"center",
-          height:"100vh", color:"var(--muted)", fontSize:14}}>
-          Loading…
-        </div>
-      );
-    }
-
     const statusLabel =
       saveStatus === "loading" ? "loading…" :
       saveStatus === "saving"  ? "saving…" :
-      saveStatus === "error"   ? ("⚠ " + (saveError || "save failed")) :
-      savedAt ? ("saved · " + savedAt.toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"})) :
-      "ready";
+      saveStatus === "error"   ? "⚠ save failed" :
+      saveStatus === "saved" && savedAt
+        ? "saved · " + savedAt.toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"})
+        : "";
 
     return (
       <>
         <div className="util-bar">
           <div style={{display:"flex", alignItems:"center", gap:14}}>
-            <span className="serif" style={{fontSize:16, color:"#FBF7EE"}}>Roomer admin</span>
-            <a href="./index.html" target="_blank">↗ Preview consumer view</a>
+            <span className="serif" style={{fontSize:16, color:"#FBF7EE"}}>Roomer</span>
+            {listing && (
+              <a href={`./index.html?id=${listing.id}`} target="_blank">↗ Preview</a>
+            )}
           </div>
           <div className="actions">
-            <span className="saved" style={{color: saveStatus === "error" ? "#E8825A" : undefined}}
-              title={saveStatus === "error" ? saveError : undefined}>
-              {statusLabel}
-            </span>
-            <button className="ghost" onClick={resetToFile}>Reset</button>
+            {listing && statusLabel && (
+              <span className="saved" style={{color: saveStatus==="error" ? "#E8825A" : undefined}}>
+                {statusLabel}
+              </span>
+            )}
           </div>
         </div>
         <div className="admin-root">
-          <AdminApp listing={listing} setListing={setListing}/>
+          <AdminApp
+            view={view}
+            setView={setView}
+            listing={listing}
+            setListing={setListing}
+            onOpenListing={handleOpenListing}
+            onBack={handleBack}
+          />
         </div>
       </>
     );
